@@ -1,0 +1,68 @@
+name: Build SIITHSYSTEMS Remote MCP Guide PDF
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.md"
+      - "docs/siithsystems-remote-mcp-guide.css"
+      - ".github/workflows/build-siithsystems-remote-mcp-guide.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: siithsystems-remote-mcp-guide
+  cancel-in-progress: true
+
+jobs:
+  build-pdf:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install document toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc weasyprint fonts-dejavu-core
+
+      - name: Build HTML
+        run: |
+          pandoc \
+            docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.md \
+            --standalone \
+            --toc \
+            --css=siithsystems-remote-mcp-guide.css \
+            -o docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.html
+
+      - name: Build PDF
+        run: |
+          cd docs
+          weasyprint \
+            SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.html \
+            SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.pdf
+
+      - name: Validate PDF
+        run: |
+          test -s docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.pdf
+          file docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.pdf
+          ls -lh docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.pdf
+
+      - name: Commit generated PDF
+        run: |
+          rm -f docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.html
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/SIITHSYSTEMS_DESKTOP_COMMANDER_REMOTE_MCP_GUIDE.pdf
+          if git diff --cached --quiet; then
+            echo "PDF is already current."
+            exit 0
+          fi
+          git commit -m "docs: build SIITHSYSTEMS Remote MCP guide PDF"
+          git push
